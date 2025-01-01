@@ -1,4 +1,4 @@
-?php
+<?php
 // Database connection
 $conn = mysqli_connect("localhost", "root", "", "online_voting");
 if (!$conn) {
@@ -11,12 +11,10 @@ $sql = "CREATE TABLE IF NOT EXISTS Users (
     username VARCHAR(50) NOT NULL,
     email VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL
+    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )";
-if (mysqli_query($conn, $sql)) {
-    echo "Table Users created successfully <br>";
-} else {
-    echo "Error creating table: " . mysqli_error($conn);
-}
+
 
 // SQL to create table Polls if not exists
 $sql = "CREATE TABLE IF NOT EXISTS Polls (
@@ -28,11 +26,6 @@ $sql = "CREATE TABLE IF NOT EXISTS Polls (
     voting_limit INT,
     FOREIGN KEY (user_id) REFERENCES Users(user_id)
 )";
-if (mysqli_query($conn, $sql)) {
-    echo "Table Polls created successfully <br>";
-} else {
-    echo "Error creating table: " . mysqli_error($conn);
-}
 
 // SQL to create table Options if not exists
 $sql = "CREATE TABLE IF NOT EXISTS Options (
@@ -41,11 +34,7 @@ $sql = "CREATE TABLE IF NOT EXISTS Options (
     option_text TEXT NOT NULL,
     FOREIGN KEY (poll_id) REFERENCES Polls(poll_id)
 )";
-if (mysqli_query($conn, $sql)) {
-    echo "Table Options created successfully <br>";
-} else {
-    echo "Error creating table: " . mysqli_error($conn);
-}
+
 
 // SQL to create table Votes if not exists
 $sql = "CREATE TABLE IF NOT EXISTS Votes (
@@ -57,9 +46,4 @@ $sql = "CREATE TABLE IF NOT EXISTS Votes (
     FOREIGN KEY (user_id) REFERENCES Users(user_id),
     FOREIGN KEY (option_id) REFERENCES Options(option_id)
 )";
-if (mysqli_query($conn, $sql)) {
-    echo "Table Votes created successfully <br>";
-} else {
-    echo "Error creating table: " . mysqli_error($conn);
-}
 ?>
