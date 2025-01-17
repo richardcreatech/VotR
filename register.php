@@ -1,42 +1,40 @@
-?php
+<?php
 require 'conn.php';
+require 'functions.php';
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = $_POST['username'];
-    $email = $_POST['email'];
-    $password = $_POST['password'];
+session_start();
 
-    $check_sql = "SELECT * FROM Users WHERE email = '$email'";
-    $result = mysqli_query($conn, $check_sql);
-
-    if (mysqli_num_rows($result) > 0) {
-        echo "Error: Duplicate email.";
-    } else {
-        $sql = "INSERT INTO Users (username, password, email, registration_date) VALUES ('$username', '$password', '$email', NOW())";
-        if (mysqli_query($conn, $sql)) {
-            echo "Registration successful!";
-            $_SESSION['user_id'] = mysqli_insert_id($conn);
-        } else {
-            echo "Error: " . mysqli_error($conn);
-        }
+// Check the admin limit before processing the form
+$admin_limit_reached = false;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $admin_count_query = "SELECT COUNT(*) as admin_count FROM users WHERE user_type = 'admin'";
+    $result = mysqli_query($conn, $admin_count_query);
+    $row = mysqli_fetch_assoc($result);
+    if ($row['admin_count'] >= 3) {
+        $admin_limit_reached = true;
     }
 }
 
-function display_polls($conn) {
-    $sql = "SELECT * FROM Polls";
-    $result = mysqli_query($conn, $sql);
-    while ($row = mysqli_fetch_assoc($result)) {
-        echo "<form method='post' action='vote.php'>
-                <h3>" . $row['question'] . "</h3>
-                <input type='hidden' name='poll_id' value='" . $row['poll_id'] . "'>";
-        $poll_id = $row['poll_id'];
-        $options_sql = "SELECT * FROM Options WHERE poll_id = '$poll_id'";
-        $options_result = mysqli_query($conn, $options_sql);
-        while ($option = mysqli_fetch_assoc($options_result)) {
-            echo "<input type='radio' name='option_id' value='" . $option['option_id'] . "'>" . $option['option_text'] . "<br>";
-        }
-        echo "<button type='submit' name='vote'>Vote</button>
-              </form><hr>";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $school_id = mysqli_real_escape_string($conn, $_POST['school_id']);
+    $full_name = mysqli_real_escape_string($conn, $_POST['full_name']);
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $user_type = mysqli_real_escape_string($conn, $_POST['user_type']);
+    $level = $user_type === 'student' ? mysqli_real_escape_string($conn, $_POST['level']) : null;
+
+    // Check admin limit
+    if ($user_type === 'admin' && $admin_limit_reached) {
+        echo "<p style='color: red;'>Admin limit reached. Registration failed.</p>";
+        exit;
+    }
+
+    // Register the user
+    if (register_user($school_id, $full_name, $email, $password, $user_type, $level)) {
+        header('Location: login.php');
+        exit;
+    } else {
+        echo "<p style='color: red;'>Registration failed! Please try again.</p>";
     }
 }
 ?>
@@ -44,33 +42,54 @@ function display_polls($conn) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Register and Create Poll</title>
+    <title>User Registration</title>
+    <script>
+        function toggleLevel() {
+            const userType = document.getElementById('user_type').value;
+            const levelSelection = document.getElementById('level_selection');
+            levelSelection.style.display = userType === 'student' ? 'block' : 'none';
+        }
+    </script>
 </head>
 <body>
-    <?php if (!isset($_SESSION['user_id'])): ?>
-        <h2>Register</h2>
-        <form method="POST" action="register.php">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required><br>
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required><br>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required><br>
-            <button type="submit">Register</button>
-        </form>
-    <?php else: ?>
-        <h2>Create Poll</h2>
-        <form method="POST" action="create_poll.php">
-            <label for="question">Question:</label>
-            <input type="text" id="question" name="question" required><br>
-            <label for="option1">Option 1:</label>
-            <input type="text" id="option1" name="options[]" required><br>
-            <label for="option2">Option 2:</label>
-            <input type="text" id="option2" name="options[]" required><br>
-            <button type="submit">Create Poll</button>
-        </form>
-        <h2>Vote on Polls</h2>
-        <?php display_polls($conn); ?>
-    <?php endif; ?>
+    <h1>Register</h1>
+
+    <form action="register.php" method="post">
+        <label for="school_id">School ID:</label>
+        <input type="text" id="school_id" name="school_id" required><br><br>
+
+        <label for="full_name">Full Name:</label>
+        <input type="text" id="full_name" name="full_name" required><br><br>
+
+        <label for="email">School Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <label for="user_type">User Type:</label>
+        <select id="user_type" name="user_type" onchange="toggleLevel()" required>
+            <option value="">Select</option>
+            <option value="student">Student</option>
+            <option value="staff">Staff</option>
+            <?php if (!$admin_limit_reached): ?>
+                <option value="admin">Admin</option>
+            <?php endif; ?>
+        </select><br><br>
+
+        <div id="level_selection" style="display: none;">
+            <label for="level">Level:</label>
+            <select id="level" name="level">
+                <option value="">Select</option>
+                <option value="100lvl">100 Level</option>
+                <option value="200lvl">200 Level</option>
+                <option value="300lvl">300 Level</option>
+                <option value="400lvl">400 Level</option>
+            </select><br><br>
+        </div>
+
+        <button type="submit" <?= $admin_limit_reached ? 'disabled' : ''; ?>>Register</button>
+    </form>
 </body>
 </html>
+
