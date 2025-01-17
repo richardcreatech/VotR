@@ -1,50 +1,44 @@
 <?php
 require 'conn.php';
+require 'functions.php';
 session_start();
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+$message = ''; // Variable to store messages for user feedback
 
-    $sql = "SELECT * FROM Users WHERE username = '$username'";
-    $result = mysqli_query($conn, $sql);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+    $password = trim($_POST['password']);
 
-    if (mysqli_num_rows($result) > 0) {
-        $row = mysqli_fetch_assoc($result);
-        if (password_verify($password, $row['password'])) {
-            $_SESSION['user_id'] = $row['user_id'];
-
-            $update_sql = "UPDATE Users SET last_login = NOW() WHERE user_id = '{$row['user_id']}'";
-            mysqli_query($conn, $update_sql);
-
-            echo "Login successful!";
-        } else {
-            echo "Invalid username or password.";
-        }
+    if (empty($email) || empty($password)) {
+        $message = "Please enter both email and password.";
     } else {
-        echo "Invalid username or password.";
-    }
-}
+        // Query to fetch the user by email
+        $query = "SELECT * FROM users WHERE email = '$email'";
+        $result = mysqli_query($conn, $query);
 
-function display_polls($conn) {
-    $sql = "SELECT * FROM Polls";
-    $result = mysqli_query($conn, $sql);
-    while ($row = mysqli_fetch_assoc($result)) {
-        echo "<form method='post' action='vote.php'>
-                <h3>" . $row['question'] . "</h3>
-                <input type='hidden' name='poll_id' value='" . $row['poll_id'] . "'>";
-        $poll_id = $row['poll_id'];
-        $options_sql = "SELECT * FROM Options WHERE poll_id = '$poll_id'";
-        $options_result = mysqli_query($conn, $options_sql);
-        while ($option = mysqli_fetch_assoc($options_result)) {
-            echo "<input type='radio' name='option_id' value='" . $option['option_id'] . "'>" . $option['option_text'] . "<br>";
+        if ($result && mysqli_num_rows($result) === 1) {
+            $user = mysqli_fetch_assoc($result);
+
+            // Verify password
+            if (password_verify($password, $user['password'])) {
+                // Set session variables
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['full_name'] = $user['full_name'];
+                $_SESSION['user_type'] = $user['user_type'];
+
+                $message = "Login successful! Redirecting to the home page...";
+                // Redirect after a delay to show the success message
+                echo "<script>
+                        setTimeout(() => {
+                            window.location.href = 'index.php';
+                        }, 2000);
+                      </script>";
+            } else {
+                $message = "Invalid email or password. Please try again.";
+            }
+        } else {
+            $message = "Invalid email or password. Please try again.";
         }
-        echo "<button type='submit' name='vote'>Vote</button>
-              </form>
-              <form method='get' action='results.php'>
-                <input type='hidden' name='poll_id' value='" . $poll_id . "'>
-                <button type='submit'>View Results</button>
-              </form><hr>";
     }
 }
 ?>
@@ -52,31 +46,19 @@ function display_polls($conn) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Login and Create Poll</title>
+    <title>Login</title>
 </head>
 <body>
-    <?php if (!isset($_SESSION['user_id'])): ?>
-        <h2>Login</h2>
-        <form method="POST" action="login.php">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required><br>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required><br>
-            <button type="submit">Login</button>
-        </form>
-    <?php else: ?>
-        <h2>Create Poll</h2>
-        <form method="POST" action="create_poll.php">
-            <label for="question">Question:</label>
-            <input type="text" id="question" name="question" required><br>
-            <label for="option1">Option 1:</label>
-            <input type="text" id="option1" name="options[]" required><br>
-            <label for="option2">Option 2:</label>
-            <input type="text" id="option2" name="options[]" required><br>
-            <button type="submit">Create Poll</button>
-        </form>
-        <h2>Vote on Polls</h2>
-        <?php display_polls($conn); ?>
-    <?php endif; ?>
+    <h1>Login</h1>
+
+    <form action="login.php" method="post">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <button type="submit">Login</button>
+    </form>
 </body>
 </html>
