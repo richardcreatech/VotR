@@ -2,23 +2,79 @@
 require 'conn.php';
 session_start();
 
-if (isset($_SESSION['user_id']) && $_SERVER["REQUEST_METHOD"] === "POST") {
-    $user_id = $_SESSION['user_id'];
-    $question = mysqli_real_escape_string($conn, $_POST['question']);
-    $sql = "INSERT INTO Polls (user_id, question) VALUES ('$user_id', '$question')";
-    
-    if (mysqli_query($conn, $sql)) {
-        $poll_id = mysqli_insert_id($conn);
-        foreach ($_POST['options'] as $option) {
-            $option_text = mysqli_real_escape_string($conn, $option);
-            $sql = "INSERT INTO Options (poll_id, option_text) VALUES ('$poll_id', '$option_text')";
-            mysqli_query($conn, $sql);
-        }
-        echo "Poll created successfully!";
+// Redirect to login if not logged in
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+// Restrict access to admins only
+if ($_SESSION['user_type'] !== 'admin') {
+    echo "<p style='color: red;'>Access denied. Only admins can create polls.</p>";
+    echo "<a href='index.php'>Back to Home</a>";
+    exit;
+}
+
+// Process form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $question = mysqli_real_escape_string($conn, trim($_POST['question']));
+    $options = array_map('trim', explode(',', $_POST['options']));
+    $creator_id = $_SESSION['user_id'];
+
+    if (empty($question)) {
+        $message = "Poll question is required.";
+    } elseif (count($options) < 2) {
+        $message = "Please provide at least two options for the poll.";
     } else {
-        echo "Error: " . mysqli_error($conn);
+        // Insert poll into database
+        $poll_query = "INSERT INTO polls (question, creator_id) VALUES (?, ?)";
+        $poll_stmt = mysqli_prepare($conn, $poll_query);
+        mysqli_stmt_bind_param($poll_stmt, 'si', $question, $creator_id);
+
+        if (mysqli_stmt_execute($poll_stmt)) {
+            $poll_id = mysqli_insert_id($conn);
+
+            // Insert poll options
+            $option_query = "INSERT INTO poll_options (poll_id, option_text) VALUES (?, ?)";
+            $option_stmt = mysqli_prepare($conn, $option_query);
+
+            foreach ($options as $option) {
+                if (!empty($option)) { // Ignore empty options
+                    mysqli_stmt_bind_param($option_stmt, 'is', $poll_id, $option);
+                    mysqli_stmt_execute($option_stmt);
+                }
+            }
+
+            $message = "Poll created successfully!";
+        } else {
+            $message = "Failed to create poll. Please try again.";
+        }
     }
-} else {
-    echo "You must be logged in to create a poll.";
 }
 ?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Create Poll</title>
+</head>
+<body>
+    <h1>Create a Poll</h1>
+
+    <!-- Feedback message -->
+    <?php if (isset($message)): ?>
+        <p><?= htmlspecialchars($message); ?></p>
+    <?php endif; ?>
+
+    <form action="create_poll.php" method="post">
+        <label for="question">Poll Question:</label>
+        <input type="text" id="question" name="question" required><br><br>
+
+        <label for="options">Poll Options (comma-separated):</label>
+        <input type="text" id="options" name="options" required><br><br>
+
+        <button type="submit">Create Poll</button>
+    </form>
+    <a href="index.php">Back to Home</a>
+</body>
+</html>
