@@ -63,6 +63,6 @@ foreach ($table_queries as $query) {
     }
 }
 
-echo "Tables created successfully!";
+
 ?>
 
