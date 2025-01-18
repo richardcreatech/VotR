@@ -25,6 +25,7 @@ $table_queries = [
         `question` text NOT NULL,
         `creator_id` int(11) NOT NULL,
         `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+        `expires_at` datetime DEFAULT NULL,
         PRIMARY KEY (`id`),
         KEY `creator_id` (`creator_id`),
         FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
