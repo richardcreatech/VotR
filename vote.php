@@ -12,7 +12,7 @@ $poll_id = $_POST['poll_id'] ?? '';
 $options = [];
 
 // Fetch polls
-$polls_query = "SELECT * FROM polls";
+$polls_query = "SELECT * FROM polls WHERE expires_at > NOW()";
 $polls_result = mysqli_query($conn, $polls_query);
 
 // Fetch options for selected poll
@@ -36,8 +36,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['option_id'])) {
     if (mysqli_num_rows($check_result) > 0) {
         $message = "You have already voted on this poll.";
     } else {
-        $vote_query = "INSERT INTO votes (poll_id, option_id, user_id) VALUES ('$poll_id', '$option_id', '$user_id')";
-        $message = mysqli_query($conn, $vote_query) ? "Vote cast successfully!" : "Error casting vote.";
+        if ($poll_id) {
+            $poll_check_query = "SELECT expires_at FROM polls WHERE id = '$poll_id'";
+            $poll_check_result = mysqli_query($conn, $poll_check_query);
+            $poll_data = mysqli_fetch_assoc($poll_check_result);
+
+            if (strtotime($poll_data['expires_at']) < time()) {
+                $message = "This poll has expired. You cannot vote.";
+            } else {
+                $vote_query = "INSERT INTO votes (poll_id, option_id, user_id) VALUES ('$poll_id', '$option_id', '$user_id')";
+                $message = mysqli_query($conn, $vote_query) ? "Vote cast successfully!" : "Error casting vote.";
+            }
+        }
     }
 }
 ?>
@@ -78,6 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['option_id'])) {
             <p>No options available for this poll.</p>
         <?php endif; ?>
     </form>
-     <a href="index.php">Back to Home</a>
+    <a href="index.php">Back to Home</a>
 </body>
 </html>
