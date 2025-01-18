@@ -20,16 +20,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $question = mysqli_real_escape_string($conn, trim($_POST['question']));
     $options = array_map('trim', explode(',', $_POST['options']));
     $creator_id = $_SESSION['user_id'];
+    $expires_at = mysqli_real_escape_string($conn, $_POST['expires_at']);
+
 
     if (empty($question)) {
         $message = "Poll question is required.";
     } elseif (count($options) < 2) {
         $message = "Please provide at least two options for the poll.";
+    } elseif (empty($expires_at)) {
+        $message = "Please provide an expiration date.";
     } else {
         // Insert poll into database
-        $poll_query = "INSERT INTO polls (question, creator_id) VALUES (?, ?)";
+        $poll_query = "INSERT INTO polls (question, creator_id, expires_at) VALUES (?, ?, ?)";
         $poll_stmt = mysqli_prepare($conn, $poll_query);
-        mysqli_stmt_bind_param($poll_stmt, 'si', $question, $creator_id);
+        mysqli_stmt_bind_param($poll_stmt, 'sis', $question, $creator_id, $expires_at);
 
         if (mysqli_stmt_execute($poll_stmt)) {
             $poll_id = mysqli_insert_id($conn);
@@ -61,7 +65,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <h1>Create a Poll</h1>
 
-    <!-- Feedback message -->
     <?php if (isset($message)): ?>
         <p><?= htmlspecialchars($message); ?></p>
     <?php endif; ?>
@@ -73,8 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="options">Poll Options (comma-separated):</label>
         <input type="text" id="options" name="options" required><br><br>
 
+        <label for="expires_at">Expiration Date (YYYY-MM-DD HH:MM:SS):</label>
+        <input type="datetime-local" id="expires_at" name="expires_at" required><br><br>
+
         <button type="submit">Create Poll</button>
     </form>
     <a href="index.php">Back to Home</a>
 </body>
 </html>
+
