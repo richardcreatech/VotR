@@ -78,5 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['option_id'])) {
             <p>No options available for this poll.</p>
         <?php endif; ?>
     </form>
+     <a href="index.php">Back to Home</a>
 </body>
 </html>
