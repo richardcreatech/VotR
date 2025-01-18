@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="options">Poll Options (comma-separated):</label>
         <input type="text" id="options" name="options" required><br><br>
 
-        <label for="expires_at">Expiration Date (YYYY-MM-DD HH:MM:SS):</label>
+        <label for="expires_at">Expiration Date:</label>
         <input type="datetime-local" id="expires_at" name="expires_at" required><br><br>
 
         <button type="submit">Create Poll</button>
